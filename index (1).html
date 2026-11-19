@@ -1,0 +1,538 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="theme-color" content="#2a1a10">
+<link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="icon-192.png"><meta name="author" content="Eduardo"><title>Oware 3D — Mancala</title>
+<style>
+:root{--green:#315e45;--gold:#f4c75e}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:#2a1a10;color:#fff4df;font:15px/1.4 system-ui,Arial,sans-serif;overscroll-behavior:none}
+.stage{position:fixed;inset:0;height:100dvh;touch-action:none}
+.stage canvas{display:block;width:100%;height:100%}
+.hud{position:absolute;left:0;right:0;top:0;padding:calc(env(safe-area-inset-top,0px) + 8px) calc(env(safe-area-inset-right,0px) + 10px) 0 calc(env(safe-area-inset-left,0px) + 10px);display:flex;justify-content:space-between;align-items:flex-start;gap:8px;pointer-events:none}
+.brand{background:#302116cc;border-radius:14px;padding:8px 12px;backdrop-filter:blur(6px)}
+.brand b{font-size:clamp(16px,3.4vw,22px)}.brand small{display:block;color:#e9d4b3;font-size:12px}
+.brand .turn{font-weight:800;color:#9be0b4;margin-top:2px}
+.scores{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;pointer-events:auto}
+.score{background:#302116cc;border:2px solid transparent;border-radius:12px;padding:7px 11px;font-weight:750;cursor:pointer;backdrop-filter:blur(6px)}
+.score.on{border-color:var(--gold)}
+.bar{position:absolute;left:0;right:0;bottom:0;padding:0 calc(env(safe-area-inset-right,0px) + 10px) calc(env(safe-area-inset-bottom,0px) + 8px) calc(env(safe-area-inset-left,0px) + 10px);display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none}
+.message{background:#302116dd;border-radius:12px;padding:9px 14px;font-weight:700;max-width:640px;text-align:center;backdrop-filter:blur(6px)}
+.controls{display:flex;gap:7px;flex-wrap:wrap;justify-content:center;pointer-events:auto}
+button.action{border:0;border-radius:12px;padding:10px 13px;font-weight:800;background:var(--green);color:#fff;cursor:pointer;font-size:14px}
+button.alt{background:#8a542d}button.light{background:#ead9bb;color:#3a2819}
+button.action:focus-visible{outline:3px solid #c28b3e;outline-offset:2px}
+label.cpu{display:flex;gap:6px;align-items:center;font-weight:700;cursor:pointer;background:#302116cc;border-radius:12px;padding:8px 11px}
+.hint{position:absolute;left:0;right:0;top:50%;text-align:center;color:#fff3dcaa;font-size:12px;pointer-events:none;transition:opacity 1s}
+dialog{border:0;border-radius:18px;max-width:540px;width:calc(100% - 28px);padding:22px;background:#fffaf1;color:#302116;box-shadow:0 15px 50px #0005;max-height:85dvh;overflow:auto}
+dialog::backdrop{background:#1c120c99}dialog h2{margin-top:0}dialog p,dialog li{font-size:14px}
+@media(max-height:480px){.brand small{display:none}button.action{padding:7px 10px;font-size:13px}.message{padding:6px 10px}}
+
+.win{position:fixed;inset:0;z-index:30;display:none;align-items:center;justify-content:center;flex-direction:column;gap:6px;background:radial-gradient(circle,#3b2a1bdd,#000e);text-align:center;color:#fff4df;overflow:hidden;padding:16px}
+.win.on{display:flex;animation:fadein .5s}
+.win>*{position:relative}
+.win .rays{position:absolute;left:50%;top:50%;width:160vmax;height:160vmax;margin:-80vmax 0 0 -80vmax;background:repeating-conic-gradient(#f4c75e2e 0 9deg,#0000 9deg 18deg);animation:spin 24s linear infinite;border-radius:50%}
+.win canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.trophy{font-size:clamp(90px,24vmin,180px);line-height:1;animation:pop 1s cubic-bezier(.3,1.7,.5,1) both,bob 2s 1s ease-in-out infinite}
+.win h2{margin:0;font-size:clamp(30px,9vmin,70px);color:#f4c75e;text-shadow:0 4px 0 #8a542d,0 0 30px #f4c75e88;animation:slide .8s .3s both}
+.win p{margin:0;font-size:clamp(16px,3.4vmin,24px);animation:slide .8s .5s both}
+.win .btns{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:14px;animation:slide .8s .8s both}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes fadein{from{opacity:0}}
+@keyframes pop{from{transform:scale(0) rotate(-40deg)}}
+@keyframes bob{50%{transform:translateY(-14px) rotate(4deg)}}
+@keyframes slide{from{opacity:0;transform:translateY(30px) scale(.9)}}
+
+.tut{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 10px);width:min(580px,calc(100% - 20px));background:#fffaf1;color:#302116;border-radius:18px;padding:14px 16px;box-shadow:0 10px 40px #0007;display:none;z-index:15;max-height:62dvh;overflow:auto}
+body.intut .tut{display:block;animation:slide .4s both}body.intut .bar{display:none}
+.tut h3{margin:0 0 6px;font-size:19px}.tut p,.tut li{font-size:14px;margin:5px 0}.tut ul{margin:4px 0;padding-left:20px}
+.tdots{display:flex;gap:5px;margin-bottom:8px}.tdots i{width:9px;height:9px;border-radius:50%;background:#dccaa6}.tdots i.on{background:#315e45;transform:scale(1.25)}.tdots i.ok{background:#8fbf9f}
+.tbtn{display:flex;gap:8px;justify-content:flex-end;margin-top:10px;flex-wrap:wrap}
+.thint{color:#a0521c;font-weight:800;min-height:1em}
+.tut button:disabled{opacity:.4;cursor:default}
+@media(max-height:480px){.tut{left:auto;right:10px;transform:none;width:min(360px,46%);bottom:auto;top:62px;max-height:calc(100dvh - 76px)}}
+.in{display:block;width:100%;margin:6px 0;padding:10px;border-radius:10px;border:1px solid #c9b48f;font:inherit}
+.tag{display:inline-block;font-weight:800;font-size:12px;padding:1px 6px;border-radius:6px;background:#315e45;color:#fff}.tag.lock{opacity:.35}
+.tag.dudu{background:linear-gradient(90deg,#f4c75e,#fff3b0,#f4c75e);background-size:200%;color:#5a2d00;box-shadow:0 0 10px #f4c75e;animation:shine 2s linear infinite}
+@keyframes shine{to{background-position:200%}}
+.av{border-radius:50%;object-fit:cover;vertical-align:middle;display:inline-flex;align-items:center;justify-content:center;background:#8a542d;color:#fff;font-weight:800}
+.prof{display:flex;gap:12px;align-items:center}.prof .nm{font-weight:800;font-size:18px}.own{color:#a0521c;font-weight:800}.who{margin-top:3px;font-size:12px;font-weight:700;pointer-events:auto;cursor:pointer}
+.menu{position:fixed;inset:0;z-index:25;display:none;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:16px;background:radial-gradient(circle,#3b2a1bf2,#140c07fa);overflow:auto}
+.menu.on{display:flex;animation:fadein .4s}
+.menu h1{margin:0 0 4px;font-size:clamp(32px,9vmin,60px);color:#f4c75e;text-shadow:0 4px 0 #8a542d}
+.mp{display:flex;gap:12px;align-items:center;background:#302116cc;border:2px solid #f4c75e55;border-radius:16px;padding:10px 14px;width:min(420px,100%)}
+.mp>div{cursor:pointer}.mp .nm{font-weight:800;font-size:17px}.mp small{display:block;color:#e9d4b3}
+.mb{width:min(420px,100%);display:grid;gap:9px}.mb button{font-size:18px;padding:15px;text-align:left}
+</style><script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+</head>
+<body>
+<div class="stage" id="stage">
+ <div class="hud">
+  <div class="brand"><b>🌍 OWARE 3D</b><small>Mancala • África Ocidental • Criado por Eduardo</small><div class="turn" id="turn"></div><div class="who" id="who" title="Toque para trocar a foto"></div><input type="file" id="pf" accept="image/*" hidden onchange="setAv(this)"></div>
+  <div class="scores"><div class="score" id="c1" title="Toque para mudar o nome">🟤 <span id="n1"></span>: <span id="s1">0</span></div><div class="score" id="c2" title="Toque para mudar o nome">⚪ <span id="n2"></span>: <span id="s2">0</span></div></div>
+ </div>
+ <div class="hint" id="hint">Arraste para girar • pinça ou scroll para aproximar</div>
+ <div class="bar">
+  <div class="message" id="msg" aria-live="polite"></div>
+  <div class="controls">
+   <button class="action" id="new">↻ Nova</button>
+   <button class="action" id="mnb">☰ Menu</button><button class="action alt" id="acb">👤 Conta</button><button class="action alt" id="rkb">🏆 Rankeada</button><button class="action alt" id="onb">🌐 Online</button><button class="action alt" id="resb" style="display:none">🏳️ Desistir</button><button class="action light" id="crb">Créditos</button>
+   <button class="action alt" id="tutb">📖 Tutorial</button>
+   <button class="action alt" id="how">Como jogar</button>
+   <button class="action light" id="pres">Origem</button>
+   <button class="action light" id="cam">Câmera</button>
+   <button class="action light" id="snd" aria-label="Som">🔊</button>
+   <button class="action alt" id="fs">⛶ Tela cheia</button>
+   <label class="cpu"><input type="checkbox" id="cpu"> vs computador</label>
+  </div>
+ </div>
+</div>
+<div class="tut" id="tut"><div class="tdots" id="tdots"></div><h3 id="tt"></h3><div id="tx"></div><p class="thint" id="thint"></p><div class="tbtn"><button class="action light" id="tprev">‹ Voltar</button><button class="action" id="tnext">Próximo ›</button><button class="action alt" id="tskip">Sair</button></div></div>
+<div class="win" id="win"><div class="rays"></div><canvas id="conf"></canvas><div class="trophy" id="wt">🏆</div><h2 id="wn"></h2><p id="wp"></p><div class="btns"><button class="action" id="again">↻ Jogar de novo</button><button class="action light" id="seeb">Ver tabuleiro</button></div></div>
+<div class="menu on" id="menu"><h1>🌍 OWARE 3D</h1><div class="mp" id="mp"></div><div class="mb"><button class="action" id="mo">🌐 Jogar online</button><button class="action alt" id="mr">🏆 Rankeada</button><button class="action" id="mcp">🖥️ Contra o computador</button><button class="action light" id="m2p">👥 2 jogadores (neste aparelho)</button><button class="action alt" id="mrm">👥 Sala com amigo (código)</button><button class="action light" id="mins" style="display:none">📲 Instalar app</button><button class="action light" id="mtop">🏅 Ranking Top 10</button><button class="action light" id="mtu">📖 Tutorial</button></div></div>
+<dialog id="modal"><h2 id="mt"></h2><div id="mx"></div><button class="action" id="close">Fechar</button></dialog>
+<script>
+/* ===== COLE AQUI A CONFIGURAÇÃO DO SEU FIREBASE (passo 3 do guia) ===== */
+const FB={apiKey:'AIzaSyDj6CtkxEUj_VKU2JS7-wYQAhUu-0aakC4',authDomain:'oware-a198f.firebaseapp.com',projectId:'oware-a198f',appId:'1:741198575158:web:035ba0c172eddf2a1bca97'};
+const EM='@oware.game';
+let FU=null,AU=null;
+const $=id=>document.getElementById(id);
+/* ---------- LÓGICA (regras do Oware) ---------- */
+const side=i=>i<6?0:1;
+const reach=(i,p)=>(p===0?6:12)-i;
+function legal(h,p){
+  const mine=[];for(let i=p*6;i<p*6+6;i++)if(h[i]>0)mine.push(i);
+  const opp=h.slice((1-p)*6,(1-p)*6+6).reduce((a,b)=>a+b,0);
+  return opp===0?mine.filter(i=>h[i]>=reach(i,p)):mine;
+}
+function sim(h0,i,p){
+  const h=h0.slice();let n=h[i],pos=i;h[i]=0;const sow=[];
+  while(n>0){pos=(pos+1)%12;if(pos===i)continue;h[pos]++;n--;sow.push(pos)}
+  let cap=[],got=0;
+  if(side(pos)!==p){
+    let q=pos;
+    while(side(q)!==p&&(h[q]===2||h[q]===3)){cap.push(q);got+=h[q];q=(q+11)%12}
+    const opp=h.slice((1-p)*6,(1-p)*6+6).reduce((a,b)=>a+b,0);
+    if(got===opp){cap=[];got=0} // sem “grand slam”: não se captura todas as sementes do adversário
+  }
+  cap.forEach(c=>h[c]=0);
+  return{h,sow,cap,got};
+}
+let tut=null;
+const names=['Jogador 1','Jogador 2'];
+let seen={};
+let h=Array(12).fill(4),score=[0,0],player=0,over=false,busy=false;
+
+/* ---------- CENA 3D ---------- */
+const stage=$('stage'),cvs=document.createElement('canvas'),ctx=cvs.getContext('2d'),el=cvs;
+stage.prepend(cvs);
+class V3{constructor(x=0,y=0,z=0){this.x=x;this.y=y;this.z=z}clone(){return new V3(this.x,this.y,this.z)}copy(v){this.x=v.x;this.y=v.y;this.z=v.z;return this}
+  lerpVectors(a,b,t){this.x=a.x+(b.x-a.x)*t;this.y=a.y+(b.y-a.y)*t;this.z=a.z+(b.z-a.z)*t;return this}}
+const T={Vector3:V3},seeds=new Set(),scene={add:m=>seeds.add(m),remove:m=>seeds.delete(m)};
+let W=1,H=1,dpr=1;
+// posições: 0–5 embaixo (J1, esq→dir), 6–11 em cima (J2, dir→esq), 12 = casa J1 (direita), 13 = casa J2 (esquerda)
+const cx=[],cz=[];
+for(let i=0;i<12;i++){const col=i<6?i:11-i;cx[i]=(col-2.5)*1.5;cz[i]=i<6?1:-1}
+cx[12]=6.5;cz[12]=0;cx[13]=-6.5;cz[13]=0;
+const rings=[];for(let c=0;c<12;c++)rings[c]={userData:{on:false}};
+function label(){}
+// câmera 3D própria (perspectiva + órbita)
+const C={};
+function camUpdate(){
+  const a=Math.max(.4,W/H),port=a<.85,d=zoom*(port?Math.max(34,10/a):Math.max(16,27/a)),tt=th+(port?-Math.PI/2:0),pp=Math.max(.15,ph-(port?.4:0));C.oy=H*(tut?-.16:(port?-.06:-.05));
+  C.px=d*Math.sin(pp)*Math.sin(tt);C.py=d*Math.cos(pp);C.pz=d*Math.sin(pp)*Math.cos(tt);
+  let f=[-C.px,-.3-C.py,-C.pz];const fl=Math.hypot(...f);f=f.map(v=>v/fl);
+  let r=[-f[2],0,f[0]];const rl=Math.hypot(...r);r=r.map(v=>v/rl);
+  C.f=f;C.r=r;C.u=[r[1]*f[2]-r[2]*f[1],r[2]*f[0]-r[0]*f[2],r[0]*f[1]-r[1]*f[0]];C.fp=(H/2)/Math.tan(20*Math.PI/180);
+}
+function P(x,y,z){
+  const vx=x-C.px,vy=y-C.py,vz=z-C.pz,d=vx*C.f[0]+vy*C.f[1]+vz*C.f[2],k=C.fp/d;
+  return[W/2+(vx*C.r[0]+vy*C.r[1]+vz*C.r[2])*k,H/2+C.oy-(vx*C.u[0]+vy*C.u[1]+vz*C.u[2])*k,d,k];
+}
+const poly=pts=>{ctx.beginPath();pts.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));ctx.closePath()};
+// contorno do tabuleiro (retângulo arredondado) e veios da madeira
+const OUT=[];(function(){const w=8.5,d=2.4,r=.5;[[w-r,d-r,0],[-w+r,d-r,1],[-w+r,-d+r,2],[w-r,-d+r,3]].forEach(([x,z,q])=>{for(let i=0;i<=6;i++){const a=(q*90+i*15)*Math.PI/180;OUT.push([x+Math.cos(a)*r,z+Math.sin(a)*r])}})})();
+const GR=Array.from({length:40},(_,i)=>({z:-2.4+i*.12,o:Array.from({length:7},()=>(Math.random()-.5)*.1),a:.1+Math.random()*.16}));
+function ell(c,y,sc){const rx=(c>11?.9:.66)*sc,rz=(c>11?1.95:.66)*sc,p=[];for(let i=0;i<36;i++){const a=i/36*6.2832;p.push(P(cx[c]+Math.cos(a)*rx,y,cz[c]+Math.sin(a)*rz))}return p}
+function drawBoard(now){
+  // fundo (feltro) e sombra
+  const bg=ctx.createRadialGradient(W/2,H/2,H*.1,W/2,H/2,Math.max(W,H)*.75);bg.addColorStop(0,'#3d7556');bg.addColorStop(1,'#1c3a29');ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+  ctx.save();ctx.shadowColor='#000a';ctx.shadowBlur=35;ctx.fillStyle='#0006';poly(OUT.map(p=>P(p[0],-.9,p[1])));ctx.fill();ctx.restore();
+  // laterais visíveis
+  for(let i=0;i<OUT.length;i++){
+    const a=OUT[i],b=OUT[(i+1)%OUT.length],dx=b[0]-a[0],dz=b[1]-a[1],mx=(a[0]+b[0])/2,mz=(a[1]+b[1])/2;
+    let nx=dz,nz=-dx;if(nx*mx+nz*mz<0){nx=-nx;nz=-nz}const nl=Math.hypot(nx,nz)||1;nx/=nl;nz/=nl;
+    if(nx*(C.px-mx)+nz*(C.pz-mz)<=0)continue;
+    const l=Math.max(.35,.55+.45*(nx*-.4+nz*.8));ctx.fillStyle=`rgb(${74*l|0},${40*l|0},${18*l|0})`;
+    poly([P(a[0],0,a[1]),P(b[0],0,b[1]),P(b[0],-.78,b[1]),P(a[0],-.78,a[1])]);ctx.fill();
+  }
+  // tampo
+  const top=OUT.map(p=>P(p[0],0,p[1]));ctx.fillStyle='#7d4b26';poly(top);ctx.fill();
+  ctx.save();poly(top);ctx.clip();ctx.lineWidth=1.3;
+  GR.forEach(g=>{ctx.strokeStyle=`rgba(46,23,10,${g.a})`;ctx.beginPath();g.o.forEach((o,i)=>{const p=P(-8.5+i*17/6,0,g.z+o);i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1])});ctx.stroke()});ctx.restore();
+  ctx.strokeStyle='#3a1d0e';ctx.lineWidth=2;poly(top);ctx.stroke();
+  // faixas entalhadas (zigue-zague)
+  [-2.05,2.05].forEach(z=>{ctx.fillStyle='#2b1509';poly([P(-7.8,.003,z-.14),P(7.8,.003,z-.14),P(7.8,.003,z+.14),P(-7.8,.003,z+.14)]);ctx.fill();
+    ctx.fillStyle='#d9a45a';for(let i=0;i<20;i++){const x=-7.8+i*.78;poly([P(x+.04,.004,z+.12),P(x+.39,.004,z-.12),P(x+.74,.004,z+.12)]);ctx.fill()}});
+  // cavidades côncavas
+  for(let c=0;c<14;c++){
+    const dep=c>11?.5:.36;
+    ctx.fillStyle='#4d2915';poly(ell(c,0,1));ctx.fill();ctx.strokeStyle='#241106';ctx.lineWidth=2;ctx.stroke();
+    ctx.fillStyle='#34190b';poly(ell(c,-dep*.5,.86));ctx.fill();
+    const b=ell(c,-dep,.62),m=P(cx[c],-dep,cz[c]),gr=ctx.createRadialGradient(m[0],m[1],1,m[0],m[1],(c>11?1.95:.66)*m[3]*.7);gr.addColorStop(0,'#120602');gr.addColorStop(1,'#2d1608');
+    ctx.fillStyle=gr;poly(b);ctx.fill();
+    // brilho do aro
+    ctx.strokeStyle='#ffffff14';ctx.lineWidth=1.5;poly(ell(c,.001,1.03));ctx.stroke();
+  }
+  // anéis dourados (cavidades jogáveis)
+  const pl=.5+.5*Math.sin(now*.005);
+  rings.forEach((g,c)=>{const o=g.userData.on?(c===hover?1:.45+.4*pl):0;if(o<=0)return;
+    ctx.save();ctx.globalAlpha=o;ctx.strokeStyle='#f4c75e';ctx.shadowColor='#f4c75e';ctx.shadowBlur=12;ctx.lineWidth=c===hover?5:3.5;poly(ell(c,.06,c===hover?1.22:1.14));ctx.stroke();ctx.restore()});
+}
+function drawSeeds(){
+  const list=[];seeds.forEach(m=>{const p=P(m.position.x,m.position.y,m.position.z);list.push([m,p])});
+  list.sort((a,b)=>b[1][2]-a[1][2]);
+  list.forEach(([m,p])=>{if(m.position.y>.25){const q=P(m.position.x,.02,m.position.z),a=Math.max(0,.35-m.position.y*.1);ctx.fillStyle=`rgba(0,0,0,${a})`;ctx.beginPath();ctx.ellipse(q[0],q[1],.17*q[3],.1*q[3],0,0,6.3);ctx.fill()}});
+  list.forEach(([m,p])=>{const r=.16*p[3];ctx.drawImage(SPR[m.col],p[0]-r,p[1]-r,2*r,2*r)});
+}
+function drawLabels(){
+  for(let c=0;c<14;c++){
+    const st=c>11,p=st?P(cx[c],1.5,cz[c]):P(cx[c],.5,cz[c]+(c<6?1:-1)),r=(st?.5:.27)*p[3],n=S[c].length;
+    ctx.fillStyle='#302116dd';ctx.beginPath();ctx.arc(p[0],p[1],r,0,6.3);ctx.fill();ctx.strokeStyle='#f4c75e';ctx.lineWidth=Math.max(1.5,r*.1);ctx.stroke();
+    ctx.fillStyle='#fff4df';ctx.textAlign='center';ctx.textBaseline='middle';ctx.font=`bold ${r*(st?1:.95)}px system-ui,Arial`;ctx.fillText(n,p[0],p[1]+(st?0:r*.18));
+    if(!st){ctx.fillStyle='#f4c75e';ctx.font=`bold ${r*.5}px system-ui,Arial`;ctx.fillText(c<6?'ABCDEF'[c]:'abcdef'[c-6],p[0],p[1]-r*.5)}
+  }
+}
+// sementes
+const S=Array.from({length:14},()=>[]);
+const SPR=['#7a736a','#5b5047','#9b9185','#3e342c','#8a6a45','#b8ad9c'].map(col=>{
+  const c=document.createElement('canvas');c.width=c.height=48;const x=c.getContext('2d');
+  x.fillStyle=col;x.beginPath();x.arc(24,24,23,0,6.3);x.fill();
+  let g=x.createRadialGradient(17,15,1,24,24,24);g.addColorStop(0,'#ffffff99');g.addColorStop(.5,'#ffffff00');g.addColorStop(1,'#00000066');x.fillStyle=g;x.fill();return c});
+let sc=0;
+function newSeed(){const m={position:new V3(),col:GOLD?6:sc++%6};scene.add(m);return m}
+function slot(c,k){
+  const st=c>11,cap=st?48:10,layer=Math.floor(k/cap),kk=k%cap;
+  const r=Math.sqrt((kk+.5)/cap),a=kk*2.39996+layer*1.3;
+  const dx=Math.cos(a)*r*(st?.62:.44),dz=Math.sin(a)*r*(st?1.5:.44);
+  const nx=dx/(st?.9:.66),nz=dz/(st?1.95:.66);
+  const y=-(st?.5:.36)*Math.sqrt(Math.max(0,1-nx*nx-nz*nz))+.13+layer*.18;
+  return new T.Vector3(cx[c]+dx,y,cz[c]+dz);
+}
+function fillInitial(){
+  S.forEach(a=>{a.forEach(m=>scene.remove(m));a.length=0});
+  for(let c=0;c<12;c++)for(let k=0;k<4;k++){const m=newSeed();m.position.copy(slot(c,k));S[c].push(m)}
+  for(let c=0;c<14;c++)label(c);
+}
+
+// animações
+const tw=[];
+const go=(m,to,dur,arc,delay=0)=>new Promise(res=>tw.push({m,f:m.position.clone(),to,t0:performance.now()+delay,dur,arc,res}));
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+let ac,mute=false;
+const A=()=>{ac=ac||new (window.AudioContext||window.webkitAudioContext)();if(ac.state==='suspended')ac.resume();return ac};
+function note(f,t0,d,type='sine',v=.1,slide=0){try{const a=A(),o=a.createOscillator(),g=a.createGain(),t=a.currentTime+t0;o.type=type;o.frequency.setValueAtTime(f,t);if(slide)o.frequency.exponentialRampToValueAtTime(Math.max(30,f*slide),t+d);g.gain.setValueAtTime(v,t);g.gain.exponentialRampToValueAtTime(.001,t+d);o.connect(g);g.connect(a.destination);o.start(t);o.stop(t+d+.02)}catch(e){}}
+function sfx(k,n){
+  if(mute)return;
+  if(k==='tok'){note(n,0,.09,'triangle',.15,.5);note(n*2.7,0,.04,'square',.03)}            // semente caindo na madeira
+  else if(k==='pick'){note(200,0,.16,'sine',.14,2.4)}                                         // pegar as sementes
+  else if(k==='bad'){note(160,0,.22,'sawtooth',.07,.6);note(120,.12,.25,'sawtooth',.07,.6)}  // jogada inválida
+  else if(k==='cap'){[523,659,784,1047,1319].slice(0,n>=6?5:4).forEach((f,i)=>{note(f,i*.07,.22,'triangle',.11);note(f*2,i*.07,.12,'sine',.04)});if(n>=6)note(130,0,.5,'sawtooth',.05,.5)} // captura “moedinhas”
+  else if(k==='win'){[[523,0],[523,.16],[659,.32],[784,.48],[659,.72],[784,.88],[1047,1.1]].forEach(([f,t])=>{note(f,t,.3,'triangle',.13);note(f/2,t,.3,'sine',.07)});[0,.2,.4].forEach(t=>note(1568+t*500,1.3+t,.25,'sine',.05))}
+  else if(k==='draw'){note(440,0,.3,'triangle',.12);note(392,.3,.5,'triangle',.12)}
+}
+const tick=f=>sfx('tok',f);
+
+/* ---------- JOGADA ANIMADA ---------- */
+async function play(i,rem){
+  if(busy||over)return;
+  if(net&&!rem&&(!net.on||player!==net.seat))return;
+  if(tut){if(tut.target==null||tut.moved)return;if(i!==tut.target){$('thint').textContent='👆 Toque na cavidade dourada que está brilhando.';sfx('bad');return}}
+  if(side(i)!==player||h[i]===0)return;
+  if(!legal(h,player).includes(i)){say('Dê sementes ao adversário, que está sem sementes. Escolha outra cavidade.');sfx('bad');return}
+  if(net&&!rem){net.moves.push(i);net.n=net.moves.length;DB.doc('matches/'+net.mid).update({moves:net.moves}).catch(()=>{})}
+  busy=true;updateRings();sfx('pick');
+  const r=sim(h,i,player),p=player;
+  // pegar as sementes
+  const hand=S[i].splice(0);label(i);
+  await Promise.all(hand.map((m,k)=>go(m,new T.Vector3(cx[i]+(k%3-1)*.18,2.2+Math.floor(k/3)*.2,cz[i]+(Math.floor(k/3)%2)*.15),320,.3,k*25)));
+  // semear uma a uma
+  for(const t of r.sow){
+    const m=hand.pop();S[t].push(m);label(t);tick(300+t*25);
+    await go(m,slot(t,S[t].length-1),Math.max(170,320-r.sow.length*6),1.1);
+  }
+  // capturar
+  if(r.cap.length){
+    await sleep(250);const st=p===0?12:13;
+    for(const c of r.cap){
+      const ms=S[c].splice(0);label(c);
+      await Promise.all(ms.map((m,k)=>{S[st].push(m);return go(m,slot(st,S[st].length-1),450,1.6,k*60)}));
+      label(st);sfx('cap',r.got);
+    }
+  }
+  h=r.h;score[p]+=r.got;if(p===(net?net.seat:0)&&r.got>mc)mc=r.got;if(r.got&&navigator.vibrate)navigator.vibrate(40);
+  const nxt=1-p,key=h.join()+nxt+score;seen[key]=(seen[key]||0)+1;
+  if(score[0]>=25||score[1]>=25||legal(h,nxt).length===0||seen[key]>=3){await finish(score[0]<25&&score[1]<25);return}
+  player=nxt;busy=false;ui();
+  if(tut){tutDone();return}
+  say(`${names[p]} jogou ${i<6?'ABCDEF'[i]:'abcdef'[i-6]}. ${names[player]}, sua vez.${r.got?` ${names[p]} capturou ${r.got} sementes.`:''}`);
+  if($('cpu').checked&&player===1)setTimeout(()=>play(cpuPick()),700);
+}
+async function finish(sweep=true){
+  const ps=[];
+  for(let c=0;sweep&&c<12;c++){const st=side(c)===0?12:13;if(h[c]){score[side(c)]+=h[c]}
+    S[c].splice(0).forEach((m,k)=>{S[st].push(m);ps.push(go(m,slot(st,S[st].length-1),500,1,k*40+c*20))});label(c)}
+  if(sweep)h.fill(0);await Promise.all(ps);label(12);label(13);
+  over=true;busy=false;ui();setTimeout(showWin,900);report();
+  say(score[0]===score[1]?'Empate! 24 a 24.':`${names[score[0]>score[1]?0:1]} venceu! Parabéns!`);
+}
+let LV=1;
+function cpuPick(){const L=legal(h,1);if(LV===0)return L[Math.floor(Math.random()*L.length)];
+  let best=-1,bs=-1e9;
+  for(const i of L){const r=sim(h,i,1);let sc=r.got*10+Math.random()*3;
+    if(LV===2){let m=0;for(const j of legal(r.h,0))m=Math.max(m,sim(r.h,j,0).got);sc=r.got*10-m*9+Math.random()}
+    if(sc>bs){bs=sc;best=i}}
+  return best;
+}
+
+/* ---------- INTERFACE ---------- */
+const say=t=>$('msg').textContent=t;
+function ui(){
+  $('turn').textContent=over?'Partida encerrada':`Vez de ${names[player]}`;$('n1').textContent=names[0];$('n2').textContent=names[1];$('c1').classList.toggle('on',!over&&player===0);$('c2').classList.toggle('on',!over&&player===1);
+  $('s1').textContent=score[0];$('s2').textContent=score[1];updateRings();
+}
+let hover=-1;
+function updateRings(){const ok=tut?(tut.target!=null&&!busy&&!tut.moved?[tut.target]:[]):((!busy&&!over&&!($('cpu').checked&&player===1)&&!(net&&(!net.on||player!==net.seat)))?legal(h,player):[]);rings.forEach((g,c)=>g.userData.on=ok.includes(c))}
+function reset(){
+  tw.length=0;seen={};hideWin();h=Array(12).fill(4);score=[0,0];player=0;over=false;busy=false;fillInitial();ui();
+  say(`${names[0]} começa. Toque em uma cavidade dourada de baixo.`);
+}
+// câmera orbital
+let th=0,ph=.95,zoom=1;
+function setCam(){camUpdate()}
+const ptrs=new Map();let down=null,pinch=0;
+el.addEventListener('pointerdown',e=>{el.setPointerCapture(e.pointerId);ptrs.set(e.pointerId,e);down={x:e.clientX,y:e.clientY};if(ptrs.size===2)pinch=pd()});
+const pd=()=>{const [a,b]=[...ptrs.values()];return Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY)};
+el.addEventListener('pointermove',e=>{
+  const o=ptrs.get(e.pointerId);
+  if(o){
+    if(ptrs.size===1){th-=(e.clientX-o.clientX)*.007;ph=Math.min(1.45,Math.max(.25,ph-(e.clientY-o.clientY)*.006))}
+    ptrs.set(e.pointerId,e);
+    if(ptrs.size===2){const n=pd();zoom=Math.min(1.6,Math.max(.5,zoom*pinch/n));pinch=n}
+    setCam();
+  }else pick(e,false);
+});
+el.addEventListener('pointerup',e=>{
+  ptrs.delete(e.pointerId);
+  if(down&&Math.hypot(e.clientX-down.x,e.clientY-down.y)<6&&ptrs.size===0)pick(e,true);
+  down=null;
+});
+el.addEventListener('wheel',e=>{e.preventDefault();zoom=Math.min(1.6,Math.max(.5,zoom*(1+e.deltaY*.001)));setCam()},{passive:false});
+function pick(e,click){
+  const b=el.getBoundingClientRect(),mx=e.clientX-b.left,my=e.clientY-b.top;let best=-1,bd=1e9;
+  for(let c=0;c<12;c++){const p=P(cx[c],0,cz[c]),q=P(cx[c]+.78,0,cz[c]),w=P(cx[c],0,cz[c]+.78),r=Math.max(Math.hypot(p[0]-q[0],p[1]-q[1]),Math.hypot(p[0]-w[0],p[1]-w[1])),d=Math.hypot(mx-p[0],my-p[1]);if(d<r*1.1&&d<bd){bd=d;best=c}}
+  hover=best;el.style.cursor=best>=0&&rings[best].userData.on?'pointer':'grab';
+  if(click&&best>=0)play(best);
+}
+function resize(){W=stage.clientWidth;H=stage.clientHeight;dpr=Math.min(devicePixelRatio||1,2);cvs.width=W*dpr;cvs.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);camUpdate()}
+new ResizeObserver(resize).observe(stage);
+function loop(now){
+  for(let i=tw.length-1;i>=0;i--){
+    const t=tw[i];let u=(now-t.t0)/t.dur;if(u<0)continue;u=Math.min(1,u);const e=u*u*(3-2*u);
+    t.m.position.lerpVectors(t.f,t.to,e);t.m.position.y+=Math.sin(Math.PI*e)*t.arc;
+    if(u>=1){tw.splice(i,1);t.res()}
+  }
+  if(winSt!==null){S[winSt].forEach((m,i)=>{m.position.y=slot(winSt,i).y+Math.abs(Math.sin(now*.009+i*.7))*.3});if(winOn)th+=.0025}
+  camUpdate();drawBoard(now);drawSeeds();drawLabels();requestAnimationFrame(loop);
+}
+// ---------- TUTORIAL ----------
+function setBoard(arr,sc){
+  tw.length=0;S.forEach(a=>{a.forEach(m=>scene.remove(m));a.length=0});
+  for(let c=0;c<12;c++)for(let k=0;k<arr[c];k++){const m=newSeed();m.position.copy(slot(c,k));S[c].push(m)}
+  [0,1].forEach(p=>{for(let k=0;k<sc[p];k++){const m=newSeed(),st=12+p;m.position.copy(slot(st,k));S[st].push(m)}});
+  h=arr.slice();score=sc.slice();player=0;over=false;busy=false;hideWin();
+  for(let c=0;c<14;c++)label(c);ui();
+}
+const INIT=Array(12).fill(4);
+const STEPS=[
+ {t:'Bem-vindo ao Oware! 🌍',x:'<p>O Oware é um jogo de dois jogadores da África Ocidental. Cada um é dono da fileira à sua frente: <b>você embaixo (A–F)</b> e o adversário em cima (a–f).</p><p>Começa com <b>4 sementes</b> em cada cavidade (48 no total). As tigelas nas pontas guardam as sementes <b>capturadas</b>. Quem chegar a <b>25</b> vence!</p>',b:[INIT,[0,0]]},
+ {t:'Olhando o tabuleiro 👀',x:'<p>Você pode <b>arrastar</b> para girar o tabuleiro e usar a <b>roda do mouse</b> ou a <b>pinça</b> para aproximar. Experimente agora!</p><p>O número em cada cavidade mostra quantas sementes ela tem. O botão 🔊 liga e desliga o som.</p>'},
+ {t:'Semeando 🌱',x:'<p>Na sua vez, pegue <b>todas</b> as sementes de uma cavidade sua e solte <b>uma em cada cavidade seguinte</b>, no sentido anti-horário (para a direita embaixo, depois para a esquerda em cima).</p><p><b>Toque na cavidade C</b>, a que está brilhando.</p>',b:[INIT,[0,0]],target:2,
+  d:'Viu? As 4 sementes de C caíram em D, E, F e a, uma em cada. Ao passar para o lado de cima você deu uma semente ao adversário.'},
+ {t:'Capturando 🏆',x:'<p>Se a <b>última</b> semente cair no lado do adversário e a cavidade ficar com <b>2 ou 3</b> sementes, você captura!</p><p>Aqui F tem 2 sementes: uma vai para <b>a</b> e a última para <b>b</b>. <b>Toque em F.</b></p>',b:[[3,2,0,4,1,2,1,1,5,3,4,2],[10,10]],target:5,
+  d:'Boa! A última caiu em b e ficou com 2: capturada. A cavidade anterior, a, também ficou com 2, então também foi capturada (captura em cadeia). Foram +4 sementes!'},
+ {t:'Regras especiais ⚖️',x:'<ul><li><b>12 ou mais sementes:</b> ao dar a volta completa, a cavidade de origem é pulada.</li><li><b>Grand slam:</b> se uma jogada fosse capturar <i>todas</i> as sementes do adversário, ela vale, mas nada é capturado.</li><li><b>Alimentar:</b> se o adversário está sem sementes, você deve fazer uma jogada que lhe dê sementes.</li></ul>'},
+ {t:'Como termina 🏁',x:'<ul><li>Quem capturar <b>25 ou mais</b> sementes vence na hora. 24 a 24 é empate.</li><li>Se ninguém puder jogar, ou a mesma posição se repetir três vezes, cada jogador fica com as sementes do seu lado.</li></ul>'},
+ {t:'Dicas de estratégia 🧠',x:'<ul><li>Procure cavidades do adversário com <b>1 ou 2</b> sementes: são alvos de captura.</li><li>Cavidades suas com 1 ou 2 sementes também são vulneráveis. Fique de olho!</li><li>Juntar muitas sementes em uma cavidade permite jogadas longas e surpreendentes.</li><li>Dê sementes ao adversário só quando valer a pena.</li></ul>'},
+ {t:'Pronto para jogar! 🎉',x:'<p>Agora é com você. Você é o Jogador 1 (embaixo) e começa. Se quiser, ative <b>vs computador</b> no menu. Boa partida!</p>'}
+];
+function showStep(){
+  const st=STEPS[tut.i];tut.target=st.target??null;tut.moved=false;
+  if(st.b)setBoard(st.b[0],st.b[1]);
+  $('tt').textContent=st.t;$('tx').innerHTML=st.x;$('thint').textContent='';
+  $('tdots').innerHTML=STEPS.map((_,k)=>`<i class="${k===tut.i?'on':k<tut.i?'ok':''}"></i>`).join('');
+  $('tprev').disabled=tut.i===0;$('tnext').textContent=tut.i===STEPS.length-1?'Jogar! ▶':'Próximo ›';
+  $('tnext').disabled=tut.target!=null;updateRings();
+}
+function tutDone(){
+  tut.moved=true;$('tx').innerHTML+=`<p>✅ ${STEPS[tut.i].d}</p>`;$('thint').textContent='';$('tnext').disabled=false;updateRings();
+}
+function startTut(){$('menu').classList.remove('on');hideWin();tut={i:0};document.body.classList.add('intut');showStep()}
+function endTut(){tut=null;document.body.classList.remove('intut');reset()}
+$('tutb').onclick=startTut;$('tskip').onclick=endTut;
+$('tnext').onclick=()=>{if(busy)return;if(tut.i===STEPS.length-1)endTut();else{tut.i++;showStep()}};
+$('tprev').onclick=()=>{if(busy||tut.i===0)return;tut.i--;showStep()};
+// tela de vitória
+let winSt=null,winOn=false,parts=[],confRun=false;
+const cv=$('conf'),cg=cv.getContext('2d');
+function confetti(n){
+  cv.width=innerWidth;cv.height=innerHeight;
+  const cols=['#f4c75e','#d9482b','#2f9e9a','#fff4df','#9b6bd1','#6fcf6f'];
+  for(let i=0;i<n;i++)parts.push({x:Math.random()*cv.width,y:-20-Math.random()*cv.height*.6,vx:Math.random()*2-1,vy:2+Math.random()*3,r:Math.random()*6.3,vr:Math.random()*.3-.15,w:6+Math.random()*7,c:cols[i%6]});
+  if(!confRun){confRun=true;requestAnimationFrame(cstep)}
+}
+function cstep(){
+  cg.clearRect(0,0,cv.width,cv.height);
+  parts.forEach(q=>{q.x+=q.vx+Math.sin(q.y*.02);q.y+=q.vy;q.r+=q.vr;cg.save();cg.translate(q.x,q.y);cg.rotate(q.r);cg.fillStyle=q.c;cg.fillRect(-q.w/2,-q.w/4,q.w,q.w/2);cg.restore()});
+  parts=parts.filter(q=>q.y<cv.height+20);
+  if(winOn&&parts.length<120)confetti(10);
+  if(winOn||parts.length)requestAnimationFrame(cstep);else confRun=false;
+}
+function showWin(){
+  const draw=score[0]===score[1],w=score[0]>score[1]?0:1;
+  $('wt').textContent=draw?'🤝':(w===1&&$('cpu').checked?'🖥️':'🏆');
+  $('wn').textContent=draw?'Empate!':`${names[w]} venceu!`;
+  $('wp').textContent=draw?'24 a 24: uma partida digna de mestres!':`${score[w]} a ${score[1-w]} • Parabéns, ${names[w]}!`;
+  winOn=true;$('win').classList.add('on');
+  if(draw){sfx('draw')}else{winSt=w===0?12:13;sfx('win');confetti(220)}
+}
+function hideWin(){winOn=false;winSt=null;$('win').classList.remove('on')}
+$('again').onclick=reset;
+$('seeb').onclick=()=>{winOn=false;$('win').classList.remove('on')};
+$('snd').onclick=()=>{mute=!mute;$('snd').textContent=mute?'🔇':'🔊';if(!mute)sfx('pick')};
+// diálogos
+const modal=$('modal');
+const show=(t,html)=>{$('mt').textContent=t;$('mx').innerHTML=html;modal.open||modal.showModal()};
+$('close').onclick=()=>modal.close();
+$('how').onclick=()=>show('Regras do Oware (Abapa)',`<ol><li><b>Tabuleiro:</b> 12 cavidades em duas fileiras de 6, com 4 sementes cada (48 no total). Cada jogador é dono da fileira à sua frente: A–F embaixo, a–f em cima. As casas laterais guardam as sementes capturadas.</li><li><b>Jogada:</b> escolha uma cavidade sua com sementes, pegue todas e semeie uma em cada cavidade seguinte, no sentido anti-horário (A→F, depois a→f). Com 12 ou mais sementes, a cavidade de origem é pulada.</li><li><b>Captura:</b> se a última semente cair numa cavidade <i>do adversário</i> e ela ficar com 2 ou 3 sementes, você as captura. Depois confira a cavidade anterior: se também tiver 2 ou 3 (e for do adversário), captura também, e assim por diante.</li><li><b>Grand slam:</b> se uma jogada fosse capturar todas as sementes do adversário, ela é permitida, mas não captura nada.</li><li><b>Alimentar:</b> se o adversário está sem sementes, você é obrigado a jogar de modo a dar-lhe sementes. Se não for possível, o jogo termina e você fica com as sementes do seu lado.</li><li><b>Fim:</b> vence quem chegar a 25 sementes capturadas (24 a 24 é empate). Se a mesma posição se repetir 3 vezes, o jogo termina e cada um fica com as sementes do seu lado.</li></ol>`);
+$('pres').onclick=()=>show('Origem',`<p>O Oware (também chamado Awale, Ayo ou Warri) pertence à família dos jogos Mancala, muito associado ao povo Akan, em Gana, e jogado em toda a África Ocidental. Tradicionalmente usa tabuleiros de madeira esculpida e sementes ou pedrinhas.</p><p>Existem muitas variantes; aqui vale a forma padrão, o Abapa. As duas tigelas laterais guardam as sementes capturadas.</p><p><b>Jogo criado por Eduardo.</b></p>`);
+$('new').onclick=reset;
+$('cam').onclick=()=>{th=0;ph=.95;zoom=1;setCam()};
+$('cpu').onchange=()=>{updateRings();if($('cpu').checked&&player===1&&!busy&&!over)setTimeout(()=>play(cpuPick()),500)};
+['c1','c2'].forEach((id,k)=>$(id).onclick=()=>{const n=prompt('Nome do jogador:',names[k]);if(n&&n.trim()){names[k]=n.trim().slice(0,14);ui()}});
+$('cpu').addEventListener('change',()=>{if($('cpu').checked&&names[1]==='Jogador 2'){names[1]='Computador';ui()}});
+const fsOk=document.fullscreenEnabled||document.webkitFullscreenEnabled;
+if(!fsOk)$('fs').style.display='none';
+$('fs').onclick=()=>{const d=document,r=d.documentElement;if(d.fullscreenElement||d.webkitFullscreenElement)(d.exitFullscreen||d.webkitExitFullscreen).call(d);else(r.requestFullscreen||r.webkitRequestFullscreen).call(r)};
+addEventListener('pointerdown',()=>{$('hint').style.opacity=0},{once:true});
+/* ===== CONTAS • RANKEADA • ONLINE (acréscimo) ===== */
+const OWNER='Technodudu',lc=s=>String(s).toLowerCase(),esc=s=>String(s).replace(/[^\wÀ-ÿ +]/g,'');
+const RANKS=[[0,'Bronze','🥉'],[1100,'Prata','🥈'],[1300,'Ouro','🥇'],[1500,'Platina','💠'],[1700,'Diamante','💎'],[1900,'Mestre','👑']];
+const rk=r=>RANKS.filter(x=>r>=x[0]).pop();
+const TG={NOVATO:['🌱','Jogue 1 partida',a=>a.g>=1],VENCEDOR:['🏆','Vença 1 partida',a=>a.w>=1],VETERANO:['🎖️','Jogue 20 partidas',a=>a.g>=20],SEQUÊNCIA:['🔥','Vença 3 seguidas',a=>a.bst>=3],COLHEITA:['🌾','Capture 8+ sementes numa jogada',a=>a.cap>=8],CAMPEÃO:['⭐','Vença 25 partidas',a=>a.w>=25]};
+const tagsOf=a=>Object.keys(TG).filter(k=>TG[k][2](a)).concat(a.xt||[]);
+const tagH=a=>{const t=tagsOf(a);return lc(a.n)===lc(OWNER)?'<span class="tag dudu">👑 [DUDU+++]</span>':(t.length?`<span class="tag">[${esc(t[t.length-1])}]</span>`:'')};
+const av=(a,s)=>a.av&&/^data:image\/jpeg;base64,[\w+\/=]+$/.test(a.av)?`<img class="av" style="width:${s}px;height:${s}px" src="${a.av}">`:`<span class="av" style="width:${s}px;height:${s}px;font-size:${s*.6}px">${esc(a.n)[0]||'?'}</span>`;
+let DB=null,USR=null,me=null,net=null,rkd=null,mc=0,GOLD=false,qun=null,mun=null,mk=0,pmp=0;
+const isAdm=()=>!!me&&lc(me.n)===lc(OWNER)&&(!USR||USR.isOwner());
+SPR[6]=(()=>{const c=document.createElement('canvas');c.width=c.height=48;const x=c.getContext('2d');x.fillStyle='#f4c75e';x.beginPath();x.arc(24,24,23,0,6.3);x.fill();const g=x.createRadialGradient(17,15,1,24,24,24);g.addColorStop(0,'#fff');g.addColorStop(.5,'#fff0');g.addColorStop(1,'#8a5a0066');x.fillStyle=g;x.fill();return c})();
+async function gA(n){n=lc(n);if(DB){const s=await DB.doc('accounts/'+n).get();return s.exists?s.data():null}try{return JSON.parse(localStorage.getItem('oa_'+n))}catch(e){return null}}
+async function sA(a){const n=lc(a.n);if(DB)await DB.doc('accounts/'+n).set(a);else try{localStorage.setItem('oa_'+n,JSON.stringify(a))}catch(e){}}
+const newAcc=n=>({n,uid:FU?FU.uid:'',av:'',r:1000,g:0,w:0,l:0,st:0,bst:0,cap:0,xt:[],t:Date.now()});
+function mnu(){const e=$('mp');if(!e)return;e.innerHTML=me?`<div onclick="$('pf').click()" title="Trocar foto">${av(me,56)}</div><div onclick="openAcc()"><div class="nm">${tagH(me)} ${esc(me.n)}</div><small>${rk(me.r)[2]} ${rk(me.r)[1]} • ${me.r} pts</small><small>📷 Toque na foto para trocar</small></div>`:`<div onclick="openAcc()"><div class="nm">👤 Entrar / Criar conta</div><small>Necessário para rankeada e online</small></div>`}
+function who(){mnu();GOLD=isAdm();$('who').innerHTML=me?`${av(me,18)} ${tagH(me)} ${esc(me.n)} • ${rk(me.r)[2]} ${me.r}`:'<small>Convidado • toque em 👤 Conta</small>'}
+function setMe(a){me=a;try{localStorage.setItem('oa_me',a.n)}catch(e){}who();openAcc()}
+async function login(){const n=$('an').value.trim(),p=$('ap').value,E=$('ae');if(!n||!p)return E.textContent='Preencha nome e senha.';
+ if(!AU)return E.textContent='Servidor não configurado (veja o guia).';
+ try{await AU.signInWithEmailAndPassword(lc(n)+EM,p);FU=AU.currentUser;let a=await gA(n);if(!a&&lc(n)===lc(OWNER)){a=newAcc(OWNER);await sA(a)}
+  if(!a)return E.textContent='Conta não encontrada.';if(a.ban){await AU.signOut();return E.textContent='Conta banida.'}setMe(a)}catch(e){E.textContent='Nome ou senha incorretos.'}}
+async function reg(){const n=$('an').value.trim(),p=$('ap').value,E=$('ae');
+ if(!AU)return E.textContent='Servidor não configurado (veja o guia).';
+ if(!/^[A-Za-z0-9_]{3,14}$/.test(n))return E.textContent='Nome: 3 a 14 letras, números ou _.';if(p.length<6)return E.textContent='Senha com no mínimo 6 caracteres.';
+ try{const c=await AU.createUserWithEmailAndPassword(lc(n)+EM,p);FU=c.user;const a=newAcc(n);await sA(a);setMe(a)}catch(e){E.textContent=e.code==='auth/email-already-in-use'?'Esse nome já existe.':'Não consegui criar a conta.'}}
+function logout(){leaveNet();if(AU)AU.signOut();FU=null;me=null;try{localStorage.removeItem('oa_me')}catch(e){}who();modal.close()}
+function openAcc(){
+ if(!me){show('👤 Conta',`<p>Crie uma conta para jogar rankeada e online.</p><input id="an" class="in" placeholder="Nome (3-14: letras, números, _)" maxlength="14" autocapitalize="off"><input id="ap" class="in" type="password" placeholder="Senha (mínimo 6)"><p class="thint" id="ae"></p><button class="action" onclick="login()">Entrar</button> <button class="action alt" onclick="reg()">Criar conta</button>${DB?'':'<p><small>Sem servidor aqui: a conta fica só neste aparelho.</small></p>'}`);return}
+ const a=me,r=rk(a.r),own=tagsOf(a);
+ show('Minha conta',`<div class="prof" style="cursor:pointer" title="Trocar foto" onclick="$('pf').click()">${av(a,64)}<div><div class="nm">${tagH(a)} ${esc(a.n)}</div><div>${r[2]} ${r[1]} • ${a.r} pts</div><small>${a.w}V ${a.l}D • ${a.g} partidas • maior sequência ${a.bst}</small></div></div>${isAdm()?'<p class="own">👑 Dono do jogo • sementes douradas • painel admin • Dudu never dies</p>':''}<h3>🏅 Tags</h3><div>${[...Object.keys(TG),...(a.xt||[])].map(k=>`<span class="tag ${own.includes(k)?'':'lock'}" title="${(TG[k]||['','Concedida pelo dono'])[1]}">${(TG[k]||['🎁'])[0]} [${esc(k)}]</span>`).join(' ')}</div><small>Passe o mouse (ou segure) numa tag para ver o objetivo.</small><p><label class="action light" style="display:inline-block">📷 Foto<input type="file" accept="image/*" hidden onchange="setAv(this)"></label> <button class="action light" onclick="lead()">Ranking</button> ${isAdm()?'<button class="action alt" onclick="admin()">🛠️ Admin</button>':''} <button class="action alt" onclick="logout()">Sair</button></p>`)}
+function setAv(i){const f=i.files[0];i.value='';if(!f)return;const im=new Image();im.onload=async()=>{const c=document.createElement('canvas');c.width=c.height=72;const s=Math.min(im.width,im.height);c.getContext('2d').drawImage(im,(im.width-s)/2,(im.height-s)/2,s,s,0,0,72,72);me.av=c.toDataURL('image/jpeg',.7);try{await sA(me)}catch(e){}who();openAcc()};im.src=URL.createObjectURL(f)}
+async function lead(){if(!DB)return show('Ranking','<p>O ranking global só funciona na versão publicada (online).</p>');
+ try{const q=await DB.collection('accounts').orderBy('r','desc').limit(10).get();show('🏆 Top 10',`<ol>${q.docs.map(d=>d.data()).filter(a=>!a.ban).map(a=>`<li>${av(a,22)} ${tagH(a)} ${esc(a.n)} • ${rk(a.r)[2]} ${a.r}</li>`).join('')}</ol>`)}catch(e){show('Ranking','<p>Não consegui carregar o ranking.</p>')}}
+function admin(){if(!isAdm())return;show('🛠️ Painel do dono',`<input id="ad" class="in" placeholder="Nome do jogador"><input id="at" class="in" placeholder="TAG (ex: LENDA)" maxlength="10"><p><button class="action" onclick="adm('tag')">Dar tag</button> <button class="action alt" onclick="adm('rm')">Tirar tag</button> <button class="action alt" onclick="adm('ban')">Banir/Desbanir</button> <button class="action light" onclick="adm('rst')">Resetar rank</button> <button class="action light" onclick="adm('foto')">Remover foto</button></p><p class="thint" id="ae"></p>`)}
+async function adm(k){if(!isAdm())return;const n=$('ad').value.trim(),t=esc($('at').value.trim().toUpperCase()).slice(0,10),E=$('ae');
+ try{const a=await gA(n);if(!a)return E.textContent='Jogador não encontrado.';if(lc(n)===lc(OWNER))return E.textContent='Essa é a conta do dono.';
+ if(k==='tag'&&t)a.xt=[...new Set([...(a.xt||[]),t])];if(k==='rm')a.xt=(a.xt||[]).filter(x=>x!==t);if(k==='ban')a.ban=!a.ban;if(k==='rst'){a.r=1000;a.st=0}if(k==='foto')a.av='';
+ await sA(a);E.textContent='Feito ✔'}catch(e){E.textContent='Falhou.'}}
+/* partidas */
+async function upd(res,ranked){if(!me)return;if(net){if(net.rep)return;net.rep=1}
+ const a=(await gA(me.n).catch(()=>null))||me,opp=net?net.ro[1-net.seat]:1200;
+ a.g++;if(res===1){a.w++;a.st++;a.bst=Math.max(a.bst,a.st)}else if(res===0){a.l++;a.st=0}a.cap=Math.max(a.cap,mc);
+ const old=tagsOf(a).length,r0=a.r;if(ranked)a.r=Math.max(0,Math.round(a.r+32*(res-1/(1+10**((opp-a.r)/400)))));
+ me=a;try{await sA(a)}catch(e){}who();
+ say((ranked?`Rankeada: ${a.r-r0>=0?'+':''}${a.r-r0} pts (${rk(a.r)[2]} ${rk(a.r)[1]}). `:'')+(tagsOf(a).length>old?'🏅 Nova tag desbloqueada! Veja em Conta.':''))}
+function report(){if(!me||(!net&&!rkd))return;const s=net?net.seat:0,d=score[s]-score[1-s];upd(d>0?1:d<0?0:.5,(net&&net.rk)||(!net&&rkd))}
+function resEnd(w){if(!net||net.done)return;net.done=1;score[w]=Math.max(25,score[w]);over=true;busy=false;ui();say(`${names[w]} venceu por desistência.`);showWin();report()}
+function resign(){if(!net||over)return;DB.doc('matches/'+net.mid).update({res:net.seat}).catch(()=>{});resEnd(1-net.seat)}
+async function pump(){if(pmp)return;pmp=1;while(net&&net.n<net.moves.length){while(busy)await sleep(60);if(!net)break;await play(net.moves[net.n++],1)}pmp=0}
+function onM(s){if(!s.exists||!net)return;const d=s.data();
+ if(!net.on){if(!d.b)return;net.on=1;modal.open&&modal.close();net.seat=lc(d.a)===lc(me.n)?0:1;net.ro=[d.ra,d.rb];names[0]=d.a;names[1]=d.b;reset();th=net.seat?Math.PI:0;say(`${d.k?'🏆 Rankeada':'🌐 Online'}: ${d.a} (🟤) vs ${d.b} (⚪). ${net.seat?'Aguarde a sua vez.':'Você começa!'}`)}
+ if(d.moves.length>net.moves.length){net.moves=d.moves.slice();pump()}
+ if(d.res>=0&&!net.done)resEnd(1-d.res)}
+function qEnd(){if(qun){qun();qun=null}if(me&&DB)DB.doc('queue/'+lc(me.n)).delete().catch(()=>{})}
+function startNet(mid,k){qEnd();$('cpu').checked=false;rkd=null;mc=0;net={mid,moves:[],n:0,on:0,rk:!!k};mun=DB.doc('matches/'+mid).onSnapshot(onM);$('resb').style.display='';modal.close()}
+function leaveNet(){if(mun){mun();mun=null}qEnd();const w=net;net=null;pmp=0;$('resb').style.display='none';if(w||rkd){rkd=null;$('cpu').checked=false;names[0]='Jogador 1';names[1]='Jogador 2';th=0;reset()}}
+async function findMatch(k){if(!me)return openAcc();
+ if(!DB)return show('🌐 Online','<p>O modo online só funciona na versão publicada (link do jogo). Aqui você pode jogar a rankeada contra o computador.</p>');
+ qEnd();show('🌐 Procurando adversário…','<p>Aguardando alguém entrar na fila'+(k?' da rankeada':'')+'…</p><button class="action alt" onclick="qEnd();modal.close()">Cancelar</button>');
+ const id=lc(me.n);mk=0;
+ try{await DB.doc('queue/'+id).set({n:me.n,r:me.r,k:k?1:0,t:Date.now(),m:''})}catch(e){return show('Online','<p>Sem permissão para entrar na fila. Peça ao dono para te convidar como colaborador.</p>')}
+ qun=DB.collection('queue').onSnapshot(async s=>{if(net)return;const D=s.docs.map(d=>({id:d.id,...d.data()})),mine=D.find(d=>d.id===id);if(!mine)return;
+  if(mine.m)return startNet(mine.m,mine.k);
+  const o=D.find(d=>d.id!==id&&!d.m&&d.k===mine.k&&Date.now()-d.t<9e4);
+  if(o&&id<o.id&&!mk){mk=1;const mid=id+'_'+o.id+'_'+Date.now();
+   try{await DB.doc('matches/'+mid).set({a:mine.n,b:o.n,ra:mine.r,rb:o.r,k:mine.k,moves:[],res:-1});await DB.doc('queue/'+o.id).update({m:mid}).catch(()=>{});await DB.doc('queue/'+id).update({m:mid})}catch(e){mk=0}}})}
+function vsCpu(){LV=2;rkd=true;net=null;$('cpu').checked=true;names[0]=me.n;names[1]='Computador';mc=0;reset();say('🏆 Rankeada vs Computador valendo pontos. Boa sorte, '+me.n+'!')}
+/* botões */
+$('acb').onclick=openAcc;$('who').onclick=()=>me?$('pf').click():openAcc();
+const mgo=f=>{$('menu').classList.remove('on');f()};
+$('mnb').onclick=()=>{mnu();$('menu').classList.add('on')};
+$('mo').onclick=()=>me?mgo(()=>findMatch(0)):openAcc();
+$('mr').onclick=()=>me?mgo(()=>$('rkb').click()):openAcc();
+$('mcp').onclick=()=>mgo(()=>{leaveNet();$('cpu').checked=true;names[1]='Computador';reset()});
+$('m2p').onclick=()=>mgo(()=>{leaveNet();$('cpu').checked=false;if(names[1]==='Computador')names[1]='Jogador 2';reset()});
+$('mtop').onclick=lead;$('mtu').onclick=()=>mgo(startTut);$('onb').onclick=()=>findMatch(0);$('resb').onclick=resign;
+$('rkb').onclick=()=>{if(!me)return openAcc();const r=rk(me.r);show('🏆 Rankeada',`<p>Seu rank: ${r[2]} <b>${r[1]}</b> • ${me.r} pts. Vitórias sobem seus pontos; derrotas e desistências descem.</p><p><button class="action" onclick="modal.close();findMatch(1)">🌐 Online rankeada</button></p><p><button class="action alt" onclick="modal.close();vsCpu()">🖥️ Contra o computador</button></p>`)};
+$('crb').onclick=()=>show('Créditos',`<p><b>Oware 3D</b> • Mancala da África Ocidental</p><p>Criação, design e desenvolvimento: <b>Eduardo</b></p><p>Dono do jogo: <span class="tag dudu">👑 [DUDU+++]</span> <b>Technodudu</b></p><p><small>Privacidade: guardamos só nome de jogador, foto, pontos e partidas. O login usa um e-mail fictício, nenhum dado real é coletado. Para apagar sua conta, fale com o dono.</small></p>`);
+$('new').onclick=()=>{if(net&&!over)return say('Partida online em andamento. Use 🏳️ Desistir para sair.');
+ if(rkd&&!over&&(score[0]||score[1]||h.join()!=='4,4,4,4,4,4,4,4,4,4,4,4'))upd(0,true);if(net)return leaveNet();reset()};
+$('again').onclick=()=>net?leaveNet():reset();
+$('cpu').addEventListener('change',()=>{if(!$('cpu').checked)rkd=null});
+modal.addEventListener('close',()=>{if(qun&&!net)qEnd()});
+USR={isOwner:()=>!!FU&&lc(FU.email||'')===lc(OWNER)+EM};
+(async()=>{try{firebase.initializeApp(FB);DB=firebase.firestore();AU=firebase.auth();
+ await new Promise(r=>AU.onAuthStateChanged(u=>{FU=u;r()}));
+ if(FU){const a=await gA(FU.email.split('@')[0]);if(a&&!a.ban)me=a}}catch(e){DB=null;AU=null}who()})();
+who();
+
+/* ===== v2: dificuldade, salas, tempo, instalar ===== */
+function cpuGo(n){LV=n;modal.close();$('menu').classList.remove('on');leaveNet();$('cpu').checked=true;names[1]='Computador';reset()}
+$('mcp').onclick=()=>show('🖥️ Dificuldade','<p><button class="action light" onclick="cpuGo(0)">😊 Fácil</button></p><p><button class="action" onclick="cpuGo(1)">🙂 Médio</button></p><p><button class="action alt" onclick="cpuGo(2)">😈 Difícil</button></p>');
+$('mrm').onclick=()=>me?show('👥 Sala com amigo','<p><button class="action" onclick="mkRoom()">Criar sala</button></p><p>Ou entre com um código:</p><input id="rc" class="in" placeholder="Código da sala" maxlength="6" autocapitalize="characters"><button class="action alt" onclick="joinRoom()">Entrar</button><p class="thint" id="ae2"></p>'):openAcc();
+async function mkRoom(){if(!DB)return show('Sala','<p>Precisa do servidor online.</p>');const c=Math.random().toString(36).slice(2,6).toUpperCase();
+ try{await DB.doc('matches/R'+c).set({a:me.n,b:'',ra:me.r,rb:0,k:0,moves:[],res:-1});$('menu').classList.remove('on');startNet('R'+c,0);
+  show('👥 Sala '+c,`<p>Mande este código ao seu amigo:</p><p style="font-size:38px;font-weight:800;letter-spacing:6px">${c}</p><p>Aguardando ele entrar…</p><button class="action alt" onclick="leaveNet();modal.close()">Cancelar</button>`)}catch(e){show('Sala','<p>Não consegui criar a sala.</p>')}}
+async function joinRoom(){const c=($('rc').value||'').trim().toUpperCase(),E=$('ae2');if(c.length<3)return E.textContent='Digite o código.';
+ try{const r=DB.doc('matches/R'+c),x=await r.get();if(!x.exists||x.data().b||x.data().res>=0)return E.textContent='Sala não encontrada ou já ocupada.';
+  if(lc(x.data().a)===lc(me.n))return E.textContent='Você criou essa sala.';await r.update({b:me.n,rb:me.r});$('menu').classList.remove('on');startNet('R'+c,0)}catch(e){E.textContent='Não consegui entrar.'}}
+setInterval(()=>{if(!net||!net.on||over||net.done)return;const k=player+':'+net.moves.length;if(net.k!==k){net.k=k;net.ts=Date.now()}
+ const left=60-Math.floor((Date.now()-net.ts)/1000),my=player===net.seat;$('turn').textContent=`Vez de ${names[player]} ⏱ ${Math.max(0,left)}s`;
+ if(my&&left<=-1&&!busy)resign();else if(!my&&left<=-25&&!busy){DB.doc('matches/'+net.mid).update({res:1-net.seat}).catch(()=>{});resEnd(net.seat)}},1000);
+$('mtop').onclick=lead;$('mrm').classList.add('alt');
+let ip=null;addEventListener('beforeinstallprompt',e=>{e.preventDefault();ip=e;$('mins').style.display=''});$('mins').onclick=()=>ip&&ip.prompt();
+if('serviceWorker'in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+reset();resize();requestAnimationFrame(loop);
+try{if(!localStorage.getItem('oware_tut')){localStorage.setItem('oware_tut','1');startTut()}}catch(e){}
+</script>
+</body></html>
