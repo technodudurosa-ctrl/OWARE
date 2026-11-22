@@ -1,10 +1,10 @@
 <!doctype html>
 <html lang="pt-BR">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="theme-color" content="#2a1a10">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="theme-color" content="#17120a">
 <link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="icon-192.png"><meta name="author" content="Eduardo"><title>Oware 3D — Mancala</title>
 <style>
-:root{--green:#315e45;--gold:#f4c75e}
+:root{--green:#315e45;--gold:#f4c75e;--panel:#17120a}
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;overflow:hidden;background:#2a1a10;color:#fff4df;font:15px/1.4 system-ui,Arial,sans-serif;overscroll-behavior:none}
 .stage{position:fixed;inset:0;height:100dvh;touch-action:none}
@@ -429,20 +429,20 @@ $('fs').onclick=()=>{const d=document,r=d.documentElement;if(d.fullscreenElement
 addEventListener('pointerdown',()=>{$('hint').style.opacity=0},{once:true});
 /* ===== CONTAS • RANKEADA • ONLINE (acréscimo) ===== */
 const OWNER='Technodudu',lc=s=>String(s).toLowerCase(),esc=s=>String(s).replace(/[^\wÀ-ÿ +]/g,'');
-const RANKS=[[0,'Bronze','🥉'],[1100,'Prata','🥈'],[1300,'Ouro','🥇'],[1500,'Platina','💠'],[1700,'Diamante','💎'],[1900,'Mestre','👑']];
-const rk=r=>RANKS.filter(x=>r>=x[0]).pop();
+const RANKS=[[0,'Bronze','🥉','bronze'],[1100,'Prata','🥈','prata'],[1300,'Ouro','🥇','ouro'],[1500,'Platina','💠','platina'],[1700,'Diamante','💎','diamante'],[1900,'Mestre','👑','mestre'],[2200,'Grão-Mestre','🏆','grao-mestre']];
+const rk=(r,tier)=>RANKS.find(x=>x[3]===tier)||RANKS.filter(x=>r>=x[0]).pop();
 const TG={NOVATO:['🌱','Jogue 1 partida',a=>a.g>=1],VENCEDOR:['🏆','Vença 1 partida',a=>a.w>=1],VETERANO:['🎖️','Jogue 20 partidas',a=>a.g>=20],SEQUÊNCIA:['🔥','Vença 3 seguidas',a=>a.bst>=3],COLHEITA:['🌾','Capture 8+ sementes numa jogada',a=>a.cap>=8],CAMPEÃO:['⭐','Vença 25 partidas',a=>a.w>=25]};
 const tagsOf=a=>Object.keys(TG).filter(k=>TG[k][2](a)).concat(a.xt||[]);
 const tagH=a=>{const t=tagsOf(a);return lc(a.n)===lc(OWNER)?'<span class="tag dudu">👑 [DUDU+++]</span>':(t.length?`<span class="tag">[${esc(t[t.length-1])}]</span>`:'')};
 const av=(a,s)=>a.av&&/^data:image\/jpeg;base64,[\w+\/=]+$/.test(a.av)?`<img class="av" style="width:${s}px;height:${s}px" src="${a.av}">`:`<span class="av" style="width:${s}px;height:${s}px;font-size:${s*.6}px">${esc(a.n)[0]||'?'}</span>`;
-let DB=null,USR=null,me=null,net=null,rkd=null,mc=0,GOLD=false,qun=null,mun=null,mk=0,pmp=0;
-const isAdm=()=>!!me&&lc(me.n)===lc(OWNER)&&(!USR||USR.isOwner());
+let DB=null,USR=null,authRole='player',me=null,net=null,rkd=null,mc=0,GOLD=false,qun=null,mun=null,mk=0,pmp=0;
+const isAdm=()=>!!FU&&['owner','admin'].includes(authRole);
 SPR[6]=(()=>{const c=document.createElement('canvas');c.width=c.height=48;const x=c.getContext('2d');x.fillStyle='#f4c75e';x.beginPath();x.arc(24,24,23,0,6.3);x.fill();const g=x.createRadialGradient(17,15,1,24,24,24);g.addColorStop(0,'#fff');g.addColorStop(.5,'#fff0');g.addColorStop(1,'#8a5a0066');x.fillStyle=g;x.fill();return c})();
 async function gA(n){n=lc(n);if(DB){const s=await DB.doc('accounts/'+n).get();return s.exists?s.data():null}try{return JSON.parse(localStorage.getItem('oa_'+n))}catch(e){return null}}
 async function sA(a){const n=lc(a.n);if(DB)await DB.doc('accounts/'+n).set(a);else try{localStorage.setItem('oa_'+n,JSON.stringify(a))}catch(e){}}
 const newAcc=n=>({n,uid:FU?FU.uid:'',av:'',r:1000,g:0,w:0,l:0,st:0,bst:0,cap:0,xt:[],t:Date.now()});
-function mnu(){const e=$('mp');if(!e)return;e.innerHTML=me?`<div onclick="$('pf').click()" title="Trocar foto">${av(me,56)}</div><div onclick="openAcc()"><div class="nm">${tagH(me)} ${esc(me.n)}</div><small>${rk(me.r)[2]} ${rk(me.r)[1]} • ${me.r} pts</small><small>📷 Toque na foto para trocar</small></div>`:`<div onclick="openAcc()"><div class="nm">👤 Entrar / Criar conta</div><small>Necessário para rankeada e online</small></div>`}
-function who(){mnu();GOLD=isAdm();$('who').innerHTML=me?`${av(me,18)} ${tagH(me)} ${esc(me.n)} • ${rk(me.r)[2]} ${me.r}`:'<small>Convidado • toque em 👤 Conta</small>'}
+function mnu(){const e=$('mp');if(!e)return;e.innerHTML=me?`<div onclick="$('pf').click()" title="Trocar foto">${av(me,56)}</div><div onclick="openAcc()"><div class="nm">${tagH(me)} ${esc(me.n)}</div><small>${rk(me.r,me.rankTier)[2]} ${rk(me.r,me.rankTier)[1]} • ${me.r} pts</small><small>📷 Toque na foto para trocar</small></div>`:`<div onclick="openAcc()"><div class="nm">👤 Entrar / Criar conta</div><small>Necessário para rankeada e online</small></div>`}
+function who(){mnu();GOLD=isAdm();$('who').innerHTML=me?`${av(me,18)} ${tagH(me)} ${esc(me.n)} • ${rk(me.r,me.rankTier)[2]} ${me.r}`:'<small>Convidado • toque em 👤 Conta</small>'}
 function setMe(a){me=a;try{localStorage.setItem('oa_me',a.n)}catch(e){}who();openAcc()}
 async function login(){const n=$('an').value.trim(),p=$('ap').value,E=$('ae');if(!n||!p)return E.textContent='Preencha nome e senha.';
  if(!AU)return E.textContent='Servidor não configurado (veja o guia).';
@@ -455,23 +455,21 @@ async function reg(){const n=$('an').value.trim(),p=$('ap').value,E=$('ae');
 function logout(){leaveNet();if(AU)AU.signOut();FU=null;me=null;try{localStorage.removeItem('oa_me')}catch(e){}who();modal.close()}
 function openAcc(){
  if(!me){show('👤 Conta',`<p>Crie uma conta para jogar rankeada e online.</p><input id="an" class="in" placeholder="Nome (3-14: letras, números, _)" maxlength="14" autocapitalize="off"><input id="ap" class="in" type="password" placeholder="Senha (mínimo 6)"><p class="thint" id="ae"></p><button class="action" onclick="login()">Entrar</button> <button class="action alt" onclick="reg()">Criar conta</button>${DB?'':'<p><small>Sem servidor aqui: a conta fica só neste aparelho.</small></p>'}`);return}
- const a=me,r=rk(a.r),own=tagsOf(a);
- show('Minha conta',`<div class="prof" style="cursor:pointer" title="Trocar foto" onclick="$('pf').click()">${av(a,64)}<div><div class="nm">${tagH(a)} ${esc(a.n)}</div><div>${r[2]} ${r[1]} • ${a.r} pts</div><small>${a.w}V ${a.l}D • ${a.g} partidas • maior sequência ${a.bst}</small></div></div>${isAdm()?'<p class="own">👑 Dono do jogo • sementes douradas • painel admin • Dudu never dies</p>':''}<h3>🏅 Tags</h3><div>${[...Object.keys(TG),...(a.xt||[])].map(k=>`<span class="tag ${own.includes(k)?'':'lock'}" title="${(TG[k]||['','Concedida pelo dono'])[1]}">${(TG[k]||['🎁'])[0]} [${esc(k)}]</span>`).join(' ')}</div><small>Passe o mouse (ou segure) numa tag para ver o objetivo.</small><p><label class="action light" style="display:inline-block">📷 Foto<input type="file" accept="image/*" hidden onchange="setAv(this)"></label> <button class="action light" onclick="lead()">Ranking</button> ${isAdm()?'<button class="action alt" onclick="admin()">🛠️ Admin</button>':''} <button class="action alt" onclick="logout()">Sair</button></p>`)}
+ const a=me,r=rk(a.r,a.rankTier),own=tagsOf(a);
+ show('Minha conta',`<div class="prof" style="cursor:pointer" title="Trocar foto" onclick="$('pf').click()">${av(a,64)}<div><div class="nm">${tagH(a)} ${esc(a.n)}</div><div>${r[2]} ${r[1]} • ${a.r} pts</div><small>${a.w}V ${a.l}D • ${a.g} partidas • maior sequência ${a.bst}</small></div></div>${isAdm()?`<p class="own">${authRole==='owner'?'👑 OWNER • controle principal':'🛡️ ADMINISTRADOR • acesso administrativo'}</p>`:''}<h3>🏅 Tags</h3><div>${[...Object.keys(TG),...(a.xt||[])].map(k=>`<span class="tag ${own.includes(k)?'':'lock'}" title="${(TG[k]||['','Concedida pelo dono'])[1]}">${(TG[k]||['🎁'])[0]} [${esc(k)}]</span>`).join(' ')}</div><small>Passe o mouse (ou segure) numa tag para ver o objetivo.</small><p><label class="action light" style="display:inline-block">📷 Foto<input type="file" accept="image/*" hidden onchange="setAv(this)"></label> <button class="action light" onclick="lead()">Ranking</button> ${isAdm()?'<button class="action alt" onclick="location.href=&quot;admin.html&quot;">🛠️ Painel Admin</button>':''} <button class="action alt" onclick="logout()">Sair</button></p>`)}
 function setAv(i){const f=i.files[0];i.value='';if(!f)return;const im=new Image();im.onload=async()=>{const c=document.createElement('canvas');c.width=c.height=72;const s=Math.min(im.width,im.height);c.getContext('2d').drawImage(im,(im.width-s)/2,(im.height-s)/2,s,s,0,0,72,72);me.av=c.toDataURL('image/jpeg',.7);try{await sA(me)}catch(e){}who();openAcc()};im.src=URL.createObjectURL(f)}
 async function lead(){if(!DB)return show('Ranking','<p>O ranking global só funciona na versão publicada (online).</p>');
- try{const q=await DB.collection('accounts').orderBy('r','desc').limit(10).get();show('🏆 Top 10',`<ol>${q.docs.map(d=>d.data()).filter(a=>!a.ban).map(a=>`<li>${av(a,22)} ${tagH(a)} ${esc(a.n)} • ${rk(a.r)[2]} ${a.r}</li>`).join('')}</ol>`)}catch(e){show('Ranking','<p>Não consegui carregar o ranking.</p>')}}
-function admin(){if(!isAdm())return;show('🛠️ Painel do dono',`<input id="ad" class="in" placeholder="Nome do jogador"><input id="at" class="in" placeholder="TAG (ex: LENDA)" maxlength="10"><p><button class="action" onclick="adm('tag')">Dar tag</button> <button class="action alt" onclick="adm('rm')">Tirar tag</button> <button class="action alt" onclick="adm('ban')">Banir/Desbanir</button> <button class="action light" onclick="adm('rst')">Resetar rank</button> <button class="action light" onclick="adm('foto')">Remover foto</button></p><p class="thint" id="ae"></p>`)}
-async function adm(k){if(!isAdm())return;const n=$('ad').value.trim(),t=esc($('at').value.trim().toUpperCase()).slice(0,10),E=$('ae');
- try{const a=await gA(n);if(!a)return E.textContent='Jogador não encontrado.';if(lc(n)===lc(OWNER))return E.textContent='Essa é a conta do dono.';
- if(k==='tag'&&t)a.xt=[...new Set([...(a.xt||[]),t])];if(k==='rm')a.xt=(a.xt||[]).filter(x=>x!==t);if(k==='ban')a.ban=!a.ban;if(k==='rst'){a.r=1000;a.st=0}if(k==='foto')a.av='';
- await sA(a);E.textContent='Feito ✔'}catch(e){E.textContent='Falhou.'}}
+ try{const q=await DB.collection('accounts').orderBy('r','desc').limit(10).get();show('🏆 Top 10',`<ol>${q.docs.map(d=>d.data()).filter(a=>!a.ban).map(a=>`<li>${av(a,22)} ${tagH(a)} ${esc(a.n)} • ${rk(a.r,a.rankTier)[2]} ${a.r}</li>`).join('')}</ol>`)}catch(e){show('Ranking','<p>Não consegui carregar o ranking.</p>')}}
+function admin(){if(!isAdm())return;location.href='admin.html'}
+async function adm(){if(!isAdm())return;location.href='admin.html'}
+
 /* partidas */
 async function upd(res,ranked){if(!me)return;if(net){if(net.rep)return;net.rep=1}
  const a=(await gA(me.n).catch(()=>null))||me,opp=net?net.ro[1-net.seat]:1200;
  a.g++;if(res===1){a.w++;a.st++;a.bst=Math.max(a.bst,a.st)}else if(res===0){a.l++;a.st=0}a.cap=Math.max(a.cap,mc);
  const old=tagsOf(a).length,r0=a.r;if(ranked)a.r=Math.max(0,Math.round(a.r+32*(res-1/(1+10**((opp-a.r)/400)))));
  me=a;try{await sA(a)}catch(e){}who();
- say((ranked?`Rankeada: ${a.r-r0>=0?'+':''}${a.r-r0} pts (${rk(a.r)[2]} ${rk(a.r)[1]}). `:'')+(tagsOf(a).length>old?'🏅 Nova tag desbloqueada! Veja em Conta.':''))}
+ say((ranked?`Rankeada: ${a.r-r0>=0?'+':''}${a.r-r0} pts (${rk(a.r,a.rankTier)[2]} ${rk(a.r,a.rankTier)[1]}). `:'')+(tagsOf(a).length>old?'🏅 Nova tag desbloqueada! Veja em Conta.':''))}
 function report(){if(!me||(!net&&!rkd))return;const s=net?net.seat:0,d=score[s]-score[1-s];upd(d>0?1:d<0?0:.5,(net&&net.rk)||(!net&&rkd))}
 function resEnd(w){if(!net||net.done)return;net.done=1;score[w]=Math.max(25,score[w]);over=true;busy=false;ui();say(`${names[w]} venceu por desistência.`);showWin();report()}
 function resign(){if(!net||over)return;DB.doc('matches/'+net.mid).update({res:net.seat}).catch(()=>{});resEnd(1-net.seat)}
@@ -503,7 +501,7 @@ $('mr').onclick=()=>me?mgo(()=>$('rkb').click()):openAcc();
 $('mcp').onclick=()=>mgo(()=>{leaveNet();$('cpu').checked=true;names[1]='Computador';reset()});
 $('m2p').onclick=()=>mgo(()=>{leaveNet();$('cpu').checked=false;if(names[1]==='Computador')names[1]='Jogador 2';reset()});
 $('mtop').onclick=lead;$('mtu').onclick=()=>mgo(startTut);$('onb').onclick=()=>findMatch(0);$('resb').onclick=resign;
-$('rkb').onclick=()=>{if(!me)return openAcc();const r=rk(me.r);show('🏆 Rankeada',`<p>Seu rank: ${r[2]} <b>${r[1]}</b> • ${me.r} pts. Vitórias sobem seus pontos; derrotas e desistências descem.</p><p><button class="action" onclick="modal.close();findMatch(1)">🌐 Online rankeada</button></p><p><button class="action alt" onclick="modal.close();vsCpu()">🖥️ Contra o computador</button></p>`)};
+$('rkb').onclick=()=>{if(!me)return openAcc();const r=rk(me.r,me.rankTier);show('🏆 Rankeada',`<p>Seu rank: ${r[2]} <b>${r[1]}</b> • ${me.r} pts. Vitórias sobem seus pontos; derrotas e desistências descem.</p><p><button class="action" onclick="modal.close();findMatch(1)">🌐 Online rankeada</button></p><p><button class="action alt" onclick="modal.close();vsCpu()">🖥️ Contra o computador</button></p>`)};
 $('crb').onclick=()=>show('Créditos',`<p><b>Oware 3D</b> • Mancala da África Ocidental</p><p>Criação, design e desenvolvimento: <b>Eduardo</b></p><p>Dono do jogo: <span class="tag dudu">👑 [DUDU+++]</span> <b>Technodudu</b></p><p><small>Privacidade: guardamos só nome de jogador, foto, pontos e partidas. O login usa um e-mail fictício, nenhum dado real é coletado. Para apagar sua conta, fale com o dono.</small></p>`);
 $('new').onclick=()=>{if(net&&!over)return say('Partida online em andamento. Use 🏳️ Desistir para sair.');
  if(rkd&&!over&&(score[0]||score[1]||h.join()!=='4,4,4,4,4,4,4,4,4,4,4,4'))upd(0,true);if(net)return leaveNet();reset()};
@@ -513,7 +511,7 @@ modal.addEventListener('close',()=>{if(qun&&!net)qEnd()});
 USR={isOwner:()=>!!FU&&lc(FU.email||'')===lc(OWNER)+EM};
 (async()=>{try{firebase.initializeApp(FB);DB=firebase.firestore();AU=firebase.auth();
  await new Promise(r=>AU.onAuthStateChanged(u=>{FU=u;r()}));
- if(FU){const a=await gA(FU.email.split('@')[0]);if(a&&!a.ban)me=a}}catch(e){DB=null;AU=null}who()})();
+ if(FU){try{const tok=await FU.getIdTokenResult(true);authRole=tok.claims.role||'player'}catch(e){authRole='player'}const a=await gA(FU.email.split('@')[0]);if(a&&!a.ban)me=a}}catch(e){DB=null;AU=null}who()})();
 who();
 
 /* ===== v2: dificuldade, salas, tempo, instalar ===== */

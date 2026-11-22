@@ -1,0 +1,25 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function adminUser() { return signedIn() && request.auth.token.role in ['owner', 'admin']; }
+    function ownerUser() { return signedIn() && request.auth.token.role == 'owner'; }
+    match /accounts/{playerId} {
+      allow read: if true; // Dados públicos usados pelo ranking global.
+      allow create: if signedIn()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.r == 1000
+        && !request.resource.data.keys().hasAny(['role','ban','rankTier','rankUpdatedBy']);
+      allow update: if signedIn()
+        && resource.data.uid == request.auth.uid
+        && request.resource.data.uid == resource.data.uid
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['r','rankTier','role','ban','rankUpdatedBy','rankUpdatedAt']);
+      allow delete: if false;
+    }
+    match /rankAudit/{id} { allow read: if adminUser(); allow write: if false; }
+    // Regras temporárias para manter o modo online atual funcionando. Endurecer antes de abrir o jogo publicamente.
+    match /queue/{id} { allow read, write: if signedIn(); }
+    match /matches/{id} { allow read, write: if signedIn(); }
+    match /{document=**} { allow read, write: if false; }
+  }
+}
